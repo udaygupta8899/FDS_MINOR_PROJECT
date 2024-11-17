@@ -1,56 +1,85 @@
 import streamlit as st
 import pandas as pd
+from sklearn.preprocessing import MinMaxScaler, LabelEncoder
 from sklearn.metrics.pairwise import cosine_similarity
-from sklearn.preprocessing import LabelEncoder
+from scipy.spatial.distance import jaccard
+import numpy as np
 
 # Function to preprocess the dataset
-def preprocess_dataset(df):
-    df_encoded = df.copy()
-    label_encoders = {}
-    for column in df.select_dtypes(include=['object']).columns:
+def preprocess_data(data):
+    data_processed = data.copy()
+    encoders = {}
+    
+    # Encode categorical columns
+    for col in data.select_dtypes(include=['object']).columns:
         le = LabelEncoder()
-        df_encoded[column] = le.fit_transform(df[column])
-        label_encoders[column] = le
-    return df_encoded, label_encoders
+        data_processed[col] = le.fit_transform(data[col])
+        encoders[col] = le
+    
+    # Normalize numerical columns
+    scaler = MinMaxScaler()
+    numerical_cols = data.select_dtypes(include=['int64', 'float64']).columns
+    data_processed[numerical_cols] = scaler.fit_transform(data[numerical_cols])
+    
+    return data_processed, encoders
 
-# Function to calculate similarity
-def calculate_similarity(row1, row2):
-    # Cosine similarity for numerical vectors
-    similarity = cosine_similarity([row1], [row2])
-    return similarity[0][0] * 100  # Convert to percentage
+# Weighted similarity calculation
+def calculate_weighted_similarity(row1, row2, data, weights):
+    similarity = 0
+    total_weight = sum(weights.values())
+    
+    for col in data.columns:
+        weight = weights.get(col, 0)
+        if weight == 0:
+            continue
+        
+        if data[col].dtype in ['int64', 'float64']:  # Numerical column
+            diff = abs(row1[col] - row2[col])
+            similarity += (1 - diff) * weight
+        
+        else:  # Categorical column
+            sim = 1 - jaccard([row1[col]], [row2[col]])
+            similarity += sim * weight
+    
+    return (similarity / total_weight) * 100
 
 # Streamlit App
-st.title("FDS MINOR PROJECT")
+st.title("Row Similarity App")
 
 # Upload dataset
-uploaded_file = st.file_uploader("Upload your dataset", type=["csv"])
+uploaded_file = st.file_uploader("Upload your dataset (CSV)", type=["csv"])
 if uploaded_file is not None:
-    df = pd.read_csv(uploaded_file)
-    st.write("Dataset Preview:", df.head())
+    # Load dataset
+    data = pd.read_csv(uploaded_file)
+    st.write("Dataset Preview:", data.head())
     
-    # Preprocess dataset
-    df_encoded, label_encoders = preprocess_dataset(df)
+    # Preprocess data
+    data_processed, encoders = preprocess_data(data)
     
-    # Select rows to compare
+    # Define column weights
+    weights = {col: 1 for col in data.columns}  # Default weights
+    st.sidebar.header("Adjust Column Weights")
+    for col in data.columns:
+        weights[col] = st.sidebar.slider(f"Weight for {col}", 0, 10, 1)
+    
+    # Select rows for comparison
     st.subheader("Select Rows for Comparison")
-    row1_index = st.selectbox("Select Row 1", df.index)
-    row2_index = st.selectbox("Select Row 2", df.index)
+    row1_index = st.selectbox("Select Row 1", data.index)
+    row2_index = st.selectbox("Select Row 2", data.index)
     
     if row1_index != row2_index:
-        # Get the selected rows
-        row1 = df_encoded.iloc[row1_index]
-        row2 = df_encoded.iloc[row2_index]
-        
         # Calculate similarity
-        similarity_percentage = calculate_similarity(row1.values, row2.values)
+        row1 = data_processed.iloc[row1_index]
+        row2 = data_processed.iloc[row2_index]
+        similarity = calculate_weighted_similarity(row1, row2, data_processed, weights)
         
-        # Display similarity
-        st.subheader("Comparison Results")
-        st.write(f"The similarity between Row {row1_index} and Row {row2_index} is {similarity_percentage:.2f}%")
+        # Display results
+        st.subheader("Similarity Results")
+        st.write(f"Similarity between Row {row1_index} and Row {row2_index}: **{similarity:.2f}%**")
         
-        # Display the differences (optional)
-        st.subheader("Person Details")
-        st.write("Person 1 Details:", df.iloc[row1_index])
-        st.write("Person 2 Details:", df.iloc[row2_index])
+        # Display row details
+        st.subheader("Row Details")
+        st.write("Row 1:", data.iloc[row1_index])
+        st.write("Row 2:", data.iloc[row2_index])
     else:
         st.warning("Please select two different rows for comparison.")
