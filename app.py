@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 from sklearn.preprocessing import MinMaxScaler, LabelEncoder
-from sklearn.metrics.pairwise import cosine_similarity
 from scipy.spatial.distance import jaccard
 import numpy as np
 
@@ -23,7 +22,7 @@ def preprocess_data(data):
     
     return data_processed, encoders
 
-# Weighted similarity calculation
+# Weighted similarity calculation with improved similarity measures
 def calculate_weighted_similarity(row1, row2, data, weights):
     similarity = 0
     total_weight = sum(weights.values())
@@ -34,12 +33,18 @@ def calculate_weighted_similarity(row1, row2, data, weights):
             continue
         
         if data[col].dtype in ['int64', 'float64']:  # Numerical column
-            diff = abs(row1[col] - row2[col])
-            similarity += (1 - diff) * weight
+            # Calculate the normalized difference based on the range or standard deviation
+            col_range = data[col].max() - data[col].min()
+            if col_range == 0:  # To avoid division by zero
+                normalized_diff = 0
+            else:
+                normalized_diff = abs(row1[col] - row2[col]) / col_range
+            similarity += (1 - normalized_diff) * weight
         
         else:  # Categorical column
-            sim = 1 - jaccard([row1[col]], [row2[col]])
-            similarity += sim * weight
+            # Binary match/mismatch for categorical columns
+            match = 1 if row1[col] == row2[col] else 0
+            similarity += match * weight
     
     similarity = max(0, similarity)  # Ensure non-negative similarity
     return (similarity / total_weight) * 100  # Return percentage
