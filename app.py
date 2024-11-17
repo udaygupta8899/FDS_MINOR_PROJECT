@@ -4,8 +4,6 @@ from sklearn.preprocessing import MinMaxScaler, LabelEncoder
 from sklearn.metrics.pairwise import cosine_similarity
 from scipy.spatial.distance import jaccard
 import numpy as np
-import requests
-import json
 
 # Function to preprocess the dataset
 def preprocess_data(data):
@@ -25,7 +23,7 @@ def preprocess_data(data):
     
     return data_processed, encoders
 
-# Weighted similarity calculation
+# Improved Weighted Similarity Calculation
 def calculate_weighted_similarity(row1, row2, data, weights):
     similarity = 0
     total_weight = sum(weights.values())
@@ -36,34 +34,18 @@ def calculate_weighted_similarity(row1, row2, data, weights):
             continue
         
         if data[col].dtype in ['int64', 'float64']:  # Numerical column
+            # Apply a more effective difference calculation
             diff = abs(row1[col] - row2[col])
-            similarity += (1 - diff) * weight
+            normalized_diff = 1 - diff  # 1 being the maximum similarity (identical values)
+            similarity += normalized_diff * weight
         
         else:  # Categorical column
-            sim = 1 - jaccard([row1[col]], [row2[col]])
+            sim = 1 - jaccard([row1[col]], [row2[col]])  # Jaccard similarity for categorical values
             similarity += sim * weight
     
-    return (similarity / total_weight) * 100
-
-# Function to call Groq API (with API key from sidebar)
-def call_groq_api(api_key, model_input):
-    api_url = "https://api.groq.com/v1/query"  # Change this to the correct endpoint for Llama3-8b-8192
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json"
-    }
-    
-    # Construct the payload
-    payload = {
-        "model": "llama3-8b-8192",  # Ensure this is the correct model name
-        "input": model_input
-    }
-    
-    response = requests.post(api_url, headers=headers, json=payload)
-    if response.status_code == 200:
-        return response.json()
-    else:
-        return {"error": "Failed to get response from API"}
+    # Normalize similarity to ensure it falls between 0 and 100
+    normalized_similarity = (similarity / total_weight) * 100
+    return max(0, min(normalized_similarity, 100))  # Ensure the result is between 0 and 100
 
 # Streamlit App
 st.title("Row Similarity App")
@@ -106,16 +88,6 @@ if uploaded_file is not None:
         st.subheader("Row Details")
         st.write("Row 1:", data.iloc[row1_index])
         st.write("Row 2:", data.iloc[row2_index])
-
-        # Send similarity data to Groq model
-        model_input = {
-            "similarity": similarity,
-            "row1_details": data.iloc[row1_index].to_dict(),
-            "row2_details": data.iloc[row2_index].to_dict(),
-            "weights": weights
-        }
-        if api_key:
-            groq_response = call_groq_api(api_key, model_input)
-            st.write("Groq Model Response:", groq_response)
+        
     else:
         st.warning("Please select two different rows for comparison.")
