@@ -8,7 +8,7 @@ import requests
 import json
 
 # Set up your GROQ API key and endpoint
-API_KEY = "your_groq_api_key"  # Replace with your actual API key
+API_KEY = "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"  # Replace with your actual API key
 API_URL = "https://api.groq.com/v1/your_endpoint"  # Replace with the correct Groq endpoint
 
 # Function to preprocess the dataset
