@@ -1,5 +1,5 @@
-streamlit
-pandas
-scikit-learn
-requests
-openai-secret-manager
+streamlit==1.40.1
+openai==0.27.0
+langchain==0.0.212
+python-dotenv==0.21.0
+requests==2.31.0
