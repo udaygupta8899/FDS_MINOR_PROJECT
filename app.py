@@ -34,12 +34,17 @@ def calculate_weighted_similarity(row1, row2, data, weights):
             continue
         
         if data[col].dtype in ['int64', 'float64']:  # Numerical column
-            # Apply a more effective difference calculation
-            diff = abs(row1[col] - row2[col])
-            normalized_diff = 1 - diff  # 1 being the maximum similarity (identical values)
-            similarity += normalized_diff * weight
-        
+            # Relative scaling for numerical columns
+            col_range = data[col].max() - data[col].min()
+            if col_range > 0:  # Avoid division by zero
+                diff = abs(row1[col] - row2[col]) / col_range
+            else:
+                diff = 0  # identical values
+
+            similarity += (1 - diff) * weight  # Scale difference to similarity (max 1)
+
         else:  # Categorical column
+            # Cosine similarity for categorical data, treating values as vectors
             sim = 1 - jaccard([row1[col]], [row2[col]])  # Jaccard similarity for categorical values
             similarity += sim * weight
     
