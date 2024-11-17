@@ -50,7 +50,7 @@ def calculate_weighted_similarity(row1, row2, data, weights):
     return (similarity / total_weight) * 100  # Return percentage
 
 # Streamlit App
-st.title("Row Similarity App")
+st.title("FDS MINOR PROJECT")
 
 # Upload dataset
 uploaded_file = st.file_uploader("Upload your dataset (CSV)", type=["csv"])
@@ -70,8 +70,8 @@ if uploaded_file is not None:
         else:  # Numerical columns
             weights[col] = 1  # Assign lower weight to numerical columns
     
-    st.sidebar.header("Column Weights (Automatic Adjustment)")
-    st.sidebar.write("Weights have been set automatically based on column types.")
+    # st.sidebar.header("Column Weights (Automatic Adjustment)")
+    # st.sidebar.write("Weights have been set automatically based on column types.")
     
     # Select rows for comparison
     st.subheader("Select Rows for Comparison")
@@ -89,8 +89,8 @@ if uploaded_file is not None:
         st.write(f"Similarity between Row {row1_index} and Row {row2_index}: **{similarity:.2f}%**")
         
         # Display row details
-        st.subheader("Row Details")
-        st.write("Row 1:", data.iloc[row1_index])
-        st.write("Row 2:", data.iloc[row2_index])
+        st.subheader("Person Details")
+        st.write("Person 1:", data.iloc[row1_index])
+        st.write("Person 2:", data.iloc[row2_index])
     else:
         st.warning("Please select two different rows for comparison.")
