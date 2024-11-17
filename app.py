@@ -53,10 +53,7 @@ def calculate_weighted_similarity(row1, row2, data, weights):
     return max(0, min(normalized_similarity, 100))  # Ensure the result is between 0 and 100
 
 # Streamlit App
-st.title("Row Similarity App")
-
-# Sidebar for API Key input
-api_key = st.sidebar.text_input("Enter your API Key", type="password")
+st.title("FDS MINOR PROJECT")
 
 # Upload dataset
 uploaded_file = st.file_uploader("Upload your dataset (CSV)", type=["csv"])
@@ -90,9 +87,9 @@ if uploaded_file is not None:
         st.write(f"Similarity between Row {row1_index} and Row {row2_index}: **{similarity:.2f}%**")
         
         # Display row details
-        st.subheader("Row Details")
-        st.write("Row 1:", data.iloc[row1_index])
-        st.write("Row 2:", data.iloc[row2_index])
+        st.subheader("Person Details")
+        st.write("Person 1:", data.iloc[row1_index])
+        st.write("Person 2:", data.iloc[row2_index])
         
     else:
         st.warning("Please select two different rows for comparison.")
