@@ -4,3 +4,17 @@ scikit-learn
 streamlit
 scipy
 requests
+openai
+langchain
+huggingface_hub
+langchain-community
+python-dotenv
+pypdf
+bs4
+ipykernel
+arxiv
+langchain-openai
+chromadb
+wikipedia
+langchain-groq
+duckduckgo-search
