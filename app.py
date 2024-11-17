@@ -49,8 +49,8 @@ if uploaded_file is not None:
         st.write(f"The similarity between Row {row1_index} and Row {row2_index} is {similarity_percentage:.2f}%")
         
         # Display the differences (optional)
-        st.subheader("Row Details")
-        st.write("Row 1 Details:", df.iloc[row1_index])
-        st.write("Row 2 Details:", df.iloc[row2_index])
+        st.subheader("Person Details")
+        st.write("Person 1 Details:", df.iloc[row1_index])
+        st.write("Person 2 Details:", df.iloc[row2_index])
     else:
         st.warning("Please select two different rows for comparison.")
