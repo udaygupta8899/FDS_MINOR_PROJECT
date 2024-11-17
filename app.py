@@ -9,7 +9,7 @@ import json
 
 # Set up your GROQ API key and endpoint
 API_KEY = "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"  # Replace with your actual API key
-API_URL = "https://api.groq.com/v1/your_endpoint"  # Replace with the correct Groq endpoint
+API_URL = "https://api.groq.com/v1/models/llama3-8b-8192/completions"  # Replace with the correct Groq endpoint
 
 # Function to preprocess the dataset
 def preprocess_data(data):
