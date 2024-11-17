@@ -41,7 +41,8 @@ def calculate_weighted_similarity(row1, row2, data, weights):
             sim = 1 - jaccard([row1[col]], [row2[col]])
             similarity += sim * weight
     
-    return (similarity / total_weight) * 100
+    similarity = max(0, similarity)  # Ensure non-negative similarity
+    return (similarity / total_weight) * 100  # Return percentage
 
 # Streamlit App
 st.title("Row Similarity App")
@@ -56,11 +57,16 @@ if uploaded_file is not None:
     # Preprocess data
     data_processed, encoders = preprocess_data(data)
     
-    # Define column weights
-    weights = {col: 1 for col in data.columns}  # Default weights
-    st.sidebar.header("Adjust Column Weights")
+    # Automatically set weights based on column types
+    weights = {}
     for col in data.columns:
-        weights[col] = st.sidebar.slider(f"Weight for {col}", 0, 10, 1)
+        if data[col].dtype in ['object']:  # Categorical columns
+            weights[col] = 3  # Assign higher weight to categorical columns
+        else:  # Numerical columns
+            weights[col] = 1  # Assign lower weight to numerical columns
+    
+    st.sidebar.header("Column Weights (Automatic Adjustment)")
+    st.sidebar.write("Weights have been set automatically based on column types.")
     
     # Select rows for comparison
     st.subheader("Select Rows for Comparison")
