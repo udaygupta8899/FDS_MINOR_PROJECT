@@ -4,8 +4,8 @@ from sklearn.preprocessing import MinMaxScaler, LabelEncoder
 from sklearn.metrics.pairwise import cosine_similarity
 from scipy.spatial.distance import jaccard
 import numpy as np
-import openai_secret_manager
 import requests
+import json
 
 # Function to preprocess the dataset
 def preprocess_data(data):
@@ -45,42 +45,31 @@ def calculate_weighted_similarity(row1, row2, data, weights):
     
     return (similarity / total_weight) * 100
 
-# Function to analyze and adjust weights using Llama3 API
-def adjust_weights_using_llama(data):
-    # Prepare the message to send to the model
-    prompt = f"""
-    Given the following dataset:
-    {data.head().to_string()}
-    Analyze the data and suggest the weights for each column that would result in the most accurate row similarity comparison.
-    """
-
-    # Groq API endpoint and credentials
-    api_url = "https://api.groq.com/v1/chat/completions"
-    headers = {"Authorization": "Bearer YOUR_GROQ_API_KEY"}
-    payload = {
-        "model": "llama3-8b-8192",
-        "messages": [{"role": "user", "content": prompt}]
+# Function to call Groq API (with API key from sidebar)
+def call_groq_api(api_key, model_input):
+    api_url = "https://api.groq.com/v1/query"  # Change this to the correct endpoint for Llama3-8b-8192
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
     }
-
-    # Send the request to the API
-    response = requests.post(api_url, json=payload, headers=headers)
     
+    # Construct the payload
+    payload = {
+        "model": "llama3-8b-8192",  # Ensure this is the correct model name
+        "input": model_input
+    }
+    
+    response = requests.post(api_url, headers=headers, json=payload)
     if response.status_code == 200:
-        response_data = response.json()
-        weights_str = response_data['choices'][0]['message']['content']
-        # Convert the model's response into a dictionary of weights
-        weights = {col: 1 for col in data.columns}  # Default weights
-        for line in weights_str.splitlines():
-            if ":" in line:
-                col, weight = line.split(":")
-                weights[col.strip()] = float(weight.strip())
-        return weights
+        return response.json()
     else:
-        st.error("Error fetching weights from Groq API")
-        return {col: 1 for col in data.columns}  # Default weights if failed
+        return {"error": "Failed to get response from API"}
 
 # Streamlit App
 st.title("Row Similarity App")
+
+# Sidebar for API Key input
+api_key = st.sidebar.text_input("Enter your API Key", type="password")
 
 # Upload dataset
 uploaded_file = st.file_uploader("Upload your dataset (CSV)", type=["csv"])
@@ -92,10 +81,11 @@ if uploaded_file is not None:
     # Preprocess data
     data_processed, encoders = preprocess_data(data)
     
-    # Automatically adjust weights using Llama3 model
-    st.subheader("Adjusting Weights Using Llama3-8b-8192")
-    weights = adjust_weights_using_llama(data)
-    st.write("Suggested Weights:", weights)
+    # Define column weights
+    weights = {col: 1 for col in data.columns}  # Default weights
+    st.sidebar.header("Adjust Column Weights")
+    for col in data.columns:
+        weights[col] = st.sidebar.slider(f"Weight for {col}", 0, 10, 1)
     
     # Select rows for comparison
     st.subheader("Select Rows for Comparison")
@@ -116,5 +106,16 @@ if uploaded_file is not None:
         st.subheader("Row Details")
         st.write("Row 1:", data.iloc[row1_index])
         st.write("Row 2:", data.iloc[row2_index])
+
+        # Send similarity data to Groq model
+        model_input = {
+            "similarity": similarity,
+            "row1_details": data.iloc[row1_index].to_dict(),
+            "row2_details": data.iloc[row2_index].to_dict(),
+            "weights": weights
+        }
+        if api_key:
+            groq_response = call_groq_api(api_key, model_input)
+            st.write("Groq Model Response:", groq_response)
     else:
         st.warning("Please select two different rows for comparison.")
