@@ -4,12 +4,8 @@ from sklearn.preprocessing import MinMaxScaler, LabelEncoder
 from sklearn.metrics.pairwise import cosine_similarity
 from scipy.spatial.distance import jaccard
 import numpy as np
+import openai_secret_manager
 import requests
-import json
-
-# Set up your GROQ API key and endpoint
-API_KEY = "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"  # Replace with your actual API key
-API_URL = "https://api.groq.com/openai/v1/chat/completions"  # Replace with the correct Groq endpoint
 
 # Function to preprocess the dataset
 def preprocess_data(data):
@@ -28,37 +24,6 @@ def preprocess_data(data):
     data_processed[numerical_cols] = scaler.fit_transform(data[numerical_cols])
     
     return data_processed, encoders
-
-# Function to get adjusted weights from Groq API using Llama3-8b-8192
-def get_adjusted_weights_with_groq(data):
-    headers = {
-        "Authorization": f"Bearer {API_KEY}",
-        "Content-Type": "application/json"
-    }
-    
-    # Prepare the payload with data for Llama3
-    prompt = f"""
-    Analyze the following data and suggest appropriate weights for each feature to optimize the similarity calculation. 
-    Data: {data}
-    Please return the suggested weights as a JSON object.
-    """
-
-    payload = {
-        "model": "Llama3-8b-8192",  # Specify the Llama3 model
-        "prompt": prompt,
-        "temperature": 0.7,  # You can tweak this value for creativity
-        "max_tokens": 100  # Adjust token limit as per your needs
-    }
-    
-    # Send the request to the Groq API
-    response = requests.post(API_URL, headers=headers, json=payload)
-    
-    if response.status_code == 200:
-        result = response.json()
-        return result['choices'][0]['text']  # Adjust this based on the API response structure
-    else:
-        st.error("Error from Groq API: " + response.text)
-        return {}
 
 # Weighted similarity calculation
 def calculate_weighted_similarity(row1, row2, data, weights):
@@ -80,8 +45,42 @@ def calculate_weighted_similarity(row1, row2, data, weights):
     
     return (similarity / total_weight) * 100
 
+# Function to analyze and adjust weights using Llama3 API
+def adjust_weights_using_llama(data):
+    # Prepare the message to send to the model
+    prompt = f"""
+    Given the following dataset:
+    {data.head().to_string()}
+    Analyze the data and suggest the weights for each column that would result in the most accurate row similarity comparison.
+    """
+
+    # Groq API endpoint and credentials
+    api_url = "https://api.groq.com/v1/chat/completions"
+    headers = {"Authorization": "Bearer YOUR_GROQ_API_KEY"}
+    payload = {
+        "model": "llama3-8b-8192",
+        "messages": [{"role": "user", "content": prompt}]
+    }
+
+    # Send the request to the API
+    response = requests.post(api_url, json=payload, headers=headers)
+    
+    if response.status_code == 200:
+        response_data = response.json()
+        weights_str = response_data['choices'][0]['message']['content']
+        # Convert the model's response into a dictionary of weights
+        weights = {col: 1 for col in data.columns}  # Default weights
+        for line in weights_str.splitlines():
+            if ":" in line:
+                col, weight = line.split(":")
+                weights[col.strip()] = float(weight.strip())
+        return weights
+    else:
+        st.error("Error fetching weights from Groq API")
+        return {col: 1 for col in data.columns}  # Default weights if failed
+
 # Streamlit App
-st.title("Row Similarity with Auto-Adjusted Weights")
+st.title("Row Similarity App")
 
 # Upload dataset
 uploaded_file = st.file_uploader("Upload your dataset (CSV)", type=["csv"])
@@ -93,19 +92,10 @@ if uploaded_file is not None:
     # Preprocess data
     data_processed, encoders = preprocess_data(data)
     
-    # Prepare an example data structure (this should be your preprocessed data or a summary of the features)
-    data_example = [{"column_name": col, "type": "object" if data[col].dtype == 'object' else "numeric"} for col in data.columns]
-    
-    # Get adjusted weights from the Llama3 model using Groq API
-    adjusted_weights = get_adjusted_weights_with_groq(data_example)
-    
-    # Convert the result to a dictionary (assuming the result is JSON-like)
-    weights = json.loads(adjusted_weights)
-    
-    # Define column weights (use the adjusted weights)
-    st.sidebar.header("Adjust Column Weights")
-    for col in data.columns:
-        weights[col] = st.sidebar.slider(f"Weight for {col}", 0, 10, int(weights.get(col, 1)))
+    # Automatically adjust weights using Llama3 model
+    st.subheader("Adjusting Weights Using Llama3-8b-8192")
+    weights = adjust_weights_using_llama(data)
+    st.write("Suggested Weights:", weights)
     
     # Select rows for comparison
     st.subheader("Select Rows for Comparison")
